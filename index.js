@@ -27,23 +27,42 @@ const gravity = 0.7;
  * 플레이어와 적을 생성하는 class
  */
 class Sprite {
-  /**
-   *
-   * @param {*} param0
-   */
-  constructor({ position, velocity }) {
+  constructor({ position, velocity, color = "red", offset }) {
     this.position = position;
     this.velocity = velocity;
+    this.width = 50;
     this.height = 150;
     this.lastKey;
+    this.attackBox = {
+      position: {
+        x: this.position.x,
+        y: this.position.y,
+      },
+      offset,
+      width: 100,
+      height: 50,
+    };
+    this.color = color;
+    this.isAttacking;
   }
 
   /**
    * draw메서드는 player를 렌더링하는 것. 예를 들어, 생성자에 전달된 x, y좌표에 가로50픽셀, 세로 150픽셀의 player를 생성하는 메서드임.
    */
   draw() {
-    c.fillStyle = "red";
-    c.fillRect(this.position.x, this.position.y, 50, this.height);
+    c.fillStyle = this.color;
+    c.fillRect(this.position.x, this.position.y, this.width, this.height);
+
+    // attack box
+    if (this.isAttacking) {
+      c.fillStyle = "green";
+      c.fillRect(
+        this.attackBox.position.x,
+        this.attackBox.position.y,
+        this.attackBox.width,
+        this.attackBox.height
+      );
+    }
   }
 
   /**
@@ -51,6 +70,8 @@ class Sprite {
    */
   update() {
     this.draw();
+    this.attackBox.position.x = this.position.x + this.attackBox.offset.x;
+    this.attackBox.position.y = this.position.y;
 
     this.position.x += this.velocity.x;
     this.position.y += this.velocity.y;
@@ -60,6 +81,17 @@ class Sprite {
     } else {
       this.velocity.y += gravity;
     }
+  }
+
+  /**
+   * player가 공격하는지 아닌지에 대한 메서드.
+   */
+  attack() {
+    this.isAttacking = true;
+    // 100밀리초 동안 공격판정
+    setTimeout(() => {
+      this.isAttacking = false;
+    }, 100);
   }
 }
 
@@ -75,6 +107,11 @@ const player = new Sprite({
     x: 0,
     y: 10,
   },
+  //오프셋 = 공격범위 설정
+  offset: {
+    x: 0,
+    y: 0,
+  },
 });
 
 const enemy = new Sprite({
@@ -84,6 +121,11 @@ const enemy = new Sprite({
   },
   velocity: {
     x: 0,
+    y: 0,
+  },
+  color: "blue",
+  offset: {
+    x: -50,
     y: 0,
   },
 });
@@ -110,6 +152,23 @@ const keys = {
     pressed: false,
   },
 };
+
+/**
+ * 사각형의 충돌판정(즉, 공격판정) 메서드.
+ * @param {*} param0
+ * @returns
+ */
+function rectangularCollision({ rectangle1, rectangle2 }) {
+  return (
+    rectangle1.attackBox.position.x + rectangle1.attackBox.width >=
+      rectangle2.position.x &&
+    rectangle1.attackBox.position.x <=
+      rectangle2.position.x + rectangle2.width &&
+    rectangle1.attackBox.position.y + rectangle1.attackBox.height >=
+      rectangle2.position.y &&
+    rectangle1.attackBox.position.y <= rectangle2.position.y + rectangle2.height
+  );
+}
 
 /**
  * requestAnimationFrame() 메서드는 브라우저가 다음 리페인트(repaint) 전에 실행할 애니메이션을 호출할 수 있도록 콜백을 등록하는 데 사용되는 자바스크립트 함수입니다.
@@ -141,6 +200,29 @@ function animate() {
   } else if (keys.ArrowRight.pressed && enemy.lastKey === "ArrowRight") {
     enemy.velocity.x = 3;
   }
+
+  // 충돌 감지
+  if (
+    rectangularCollision({
+      rectangle1: player,
+      rectangle2: enemy,
+    }) &&
+    player.isAttacking
+  ) {
+    player.isAttacking = false;
+    console.log("hit1");
+  }
+
+  if (
+    rectangularCollision({
+      rectangle1: enemy,
+      rectangle2: player,
+    }) &&
+    enemy.isAttacking
+  ) {
+    enemy.isAttacking = false;
+    console.log("enemy attack");
+  }
 }
 
 animate();
@@ -164,6 +246,9 @@ window.addEventListener("keydown", (event) => {
     case "w":
       player.velocity.y = -20;
       break;
+    case " ":
+      player.attack();
+      break;
 
     // player2(enemy)의 움직임
     case "ArrowRight":
@@ -177,8 +262,10 @@ window.addEventListener("keydown", (event) => {
     case "ArrowUp":
       enemy.velocity.y = -20;
       break;
+    case "ArrowDown":
+      enemy.attack();
+      break;
   }
-  console.log(event);
 });
 
 window.addEventListener("keyup", (event) => {
@@ -198,5 +285,5 @@ window.addEventListener("keyup", (event) => {
       keys.ArrowLeft.pressed = false;
       break;
   }
-  console.log(event);
+  // console.log(event);
 });
